@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 230">
+  <rect width="600" height="230" rx="18" fill="#20251c"/>
+  <circle cx="520" cy="45" r="78" fill="#d6f278" opacity=".08"/>
+  <path d="M90 164h410" stroke="#555d49" stroke-width="3" stroke-dasharray="7 8"/>
+  <path d="M105 159c50-5 45-76 101-76s40 80 102 80 43-51 99-51 37 47 81 43" fill="none" stroke="#d6f278" stroke-width="4" stroke-linecap="round"/>
+  <g fill="#20251c" stroke="#d6f278" stroke-width="4"><circle cx="105" cy="159" r="10"/><circle cx="206" cy="83" r="10"/><circle cx="308" cy="163" r="10"/><circle cx="407" cy="112" r="10"/></g>
+  <path d="m489 136 14 24-28 1" fill="#d6f278"/>
+  <rect x="79" y="50" width="65" height="27" rx="6" fill="#394332"/><rect x="178" y="45" width="56" height="25" rx="6" fill="#394332"/><rect x="280" y="121" width="56" height="25" rx="6" fill="#394332"/>
+  <text x="161" y="218" fill="#acb89a" font-family="sans-serif" font-size="12" letter-spacing="3">СТРАТЕГИЯ И ЦЕЛИ</text>
+</svg>

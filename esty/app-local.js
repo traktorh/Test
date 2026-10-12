@@ -1,0 +1,668 @@
+const authScreen = document.querySelector("#auth-screen");
+const dashboard = document.querySelector("#dashboard");
+const authForm = document.querySelector("#auth-form");
+const authMessage = document.querySelector("#auth-message");
+const authTabs = document.querySelector("#auth-tabs");
+const authTitle = document.querySelector("#auth-title");
+const authDescription = document.querySelector("#auth-description");
+const authKicker = document.querySelector("#auth-kicker");
+const authSubmit = document.querySelector("#auth-submit");
+const logoutButton = document.querySelector("#logout-button");
+const quizDialog = document.querySelector("#quiz-dialog");
+let mode = "login";
+let currentUser;
+let currentQuizzes = [];
+let toastTimer;
+
+const PRESET_ADMINS = [
+  { username: "admin", password: "admin123" },
+  { username: "moderator", password: "moderator123" },
+  { username: "leader", password: "leader123" }
+];
+
+const RANKS = [
+  { name: "Шпана", nextPoints: 15, requirement: "Знание Устава", manual: true },
+  { name: "Фраер", nextPoints: 40 },
+  { name: "Шестерка", nextPoints: 75, requirement: "Сдача стрельбы", adminCheck: "shootingPassed" },
+  { name: "Боец", nextPoints: 110 },
+  { name: "Гопник", nextPoints: 100 },
+  { name: "Бык", nextPoints: 165 },
+  { name: "Торпеда", nextPoints: 200 },
+  { name: "Шнырь", nextPoints: 235, requirement: "Одобрение руководства", manual: true },
+  { name: "Блатной", nextPoints: 300 },
+  { name: "Бригадир", nextPoints: 400, requirement: "Проверка знаний", knowledgeCheck: true },
+  { name: "Положенец", nextPoints: null, requirement: "Назначение Паханом или Авторитетом", manual: true },
+  { name: "Смотрящий", nextPoints: null }
+];
+
+const QUIZZES = [
+  {
+    id: "charter",
+    title: "Устав и традиции",
+    category: "Основы клана",
+    image: "/images/charter.svg",
+    imageAlt: "Новичок и участники команды знакомятся за общим столом",
+    requiredRank: 1,
+    questions: [
+      { prompt: "На иллюстрации новичок не уверен, как трактовать правило. Как помочь ему применить Устав, не выдумывая исключений?", options: ["Объяснить обычную практику, сослаться на правило и уточнить спорный случай у руководства", "Сначала разрешить поступить по-своему, а потом попросить руководство решить, считать ли это нарушением", "Попросить нескольких давних участников проголосовать и считать большинство официальной трактовкой"], answer: 0 },
+      { prompt: "Два пункта Устава кажутся противоречивыми, а решение нужно сегодня. Какой порядок действий надёжнее?", options: ["Выбрать наиболее удобный пункт и объяснить выбор после решения", "Зафиксировать оба прочтения, проверить прежние решения и запросить трактовку ответственного", "Провести быстрое голосование, а затем заменить спорный текст результатом"], answer: 1 },
+      { prompt: "Участник просит переслать закрытый список контактов для срочного события. Что следует проверить?", options: ["Кто получит список, какие сведения действительно необходимы и согласны ли участники на передачу", "Достаточно убедиться, что получатель состоит в клане; дальше список можно пересылать целиком", "Сначала отправить список организатору, а разрешение участников собрать после события"], answer: 0 },
+      { prompt: "Правило нарушено впервые, но участник утверждает, что понял его иначе. Как действовать?", options: ["Зафиксировать обстоятельства, спокойно объяснить правило и проверить, требует ли случай эскалации", "Сразу назначить максимальное взыскание, чтобы одинаково трактовать все случаи", "Отменить правило для этого участника, чтобы не портить отношения"], answer: 0 }
+    ]
+  },
+  {
+    id: "teamwork",
+    title: "Командная работа",
+    category: "Взаимодействие",
+    image: "/images/teamwork.svg",
+    imageAlt: "Команда вместе собирает план из отдельных карточек задач",
+    requiredRank: 2,
+    questions: [
+      { prompt: "На иллюстрации остались незакреплённые задачи, сроки которых пересекаются. Как распределить их справедливо и без потери темпа?", options: ["Сверить загрузку и навыки участников, назначить владельцев и согласовать точки передачи", "Раздать задачи по одной каждому, даже если сроки не совпадают с их текущей нагрузкой", "Передать всё самому опытному участнику, а остальным оставить помощь по запросу"], answer: 0 },
+      { prompt: "Два участника подходят для задачи: один быстрее, второй лучше знаком с контекстом. Как выбрать?", options: ["Уточнить критичный результат и срок; при необходимости назначить владельца и второго на проверку", "Выбрать быстрого, поскольку скорость обычно важнее контекста", "Выбрать знакомого с контекстом и не привлекать второго, чтобы избежать лишних согласований"], answer: 0 },
+      { prompt: "Идея участника полезна, но требует больше ресурсов, чем есть сейчас. Как продолжить?", options: ["Попросить оценить минимальный проверочный вариант и сравнить его с текущими приоритетами", "Сразу включить полную реализацию в план, чтобы не потерять инициативу", "Отложить предложение без срока, пока ресурсов не станет больше"], answer: 0 },
+      { prompt: "При передаче дежурства остаются незавершённые задачи и одна срочная. Что сообщить сменщику?", options: ["Статус, ближайший срок, уже предпринятые шаги и контакт ответственного", "Только срочную задачу: остальное сменщик сможет восстановить по переписке", "Полный архив сообщений без краткого резюме, чтобы ничего не упустить"], answer: 0 }
+    ]
+  },
+  {
+    id: "events",
+    title: "Организация событий",
+    category: "Планирование",
+    image: "/images/events.svg",
+    imageAlt: "Календарь команды с планом подготовки к событию",
+    requiredRank: 3,
+    questions: [
+      { prompt: "На иллюстрации свободный слот есть только у части команды. До объявления события что важнее проверить?", options: ["Цель, обязательные роли, доступность ключевых участников и запасной формат", "Зарезервировать слот сразу; состав и формат уточнить после подтверждения даты", "Выбрать удобную дату большинству и предположить, что ключевые роли можно заменить"], answer: 0 },
+      { prompt: "Площадка переносит событие на час, а часть участников уже подтвердила участие. Как снизить путаницу?", options: ["Обновить одно основное объявление, указать причину, новую дату и попросить подтвердить доступность", "Отправить короткое сообщение в общий чат и оставить старый календарь до конца дня", "Сначала перенести календарь, а объявление обновить только тем, кто спросит"], answer: 0 },
+      { prompt: "Событие прошло по плану, но одна часть программы заняла вдвое больше времени. Что полезно записать?", options: ["Фактические интервалы, причину отклонения и изменение, которое стоит проверить в следующий раз", "Только общую оценку участников, чтобы отчёт не был перегружен деталями", "Оставить план как есть: успешный итог важнее временных отклонений"], answer: 0 },
+      { prompt: "Ответственный заболел накануне события, а его задача связана с доступом к площадке. Что делать?", options: ["Проверить, кто имеет нужные полномочия, передать ему контекст и сообщить об изменении участникам", "Назначить ближайшего свободного участника, а доступы запросить перед началом", "Перенести всё событие, не проверяя, можно ли безопасно передать отдельную задачу"], answer: 0 }
+    ]
+  },
+  {
+    id: "resources",
+    title: "Ресурсы и экономика",
+    category: "Экономика",
+    image: "/images/resources.svg",
+    imageAlt: "Открытый журнал с записями общих ресурсов и остатка",
+    requiredRank: 4,
+    questions: [
+      { prompt: "На иллюстрации остаток не совпал с журналом. Как проверить расхождение, не потеряв историю изменений?", options: ["Сверить операции и первичные подтверждения, внести отдельную корректировку с датой и основанием", "Заменить остаток на фактический, а подробности добавить, если кто-то запросит", "Повторить последнюю известную операцию и проверить, исчезло ли расхождение"], answer: 0 },
+      { prompt: "В отчёте нашли двойную запись; по ней уже приняли решение о расходах. Как исправить данные?", options: ["Сохранить исходную запись, отметить исправление и сообщить тем, кто опирался на итог", "Удалить дубль и переслать исправленный отчёт только следующему ответственному", "Оставить обе строки, но уменьшить итог вручную, чтобы совпал остаток"], answer: 0 },
+      { prompt: "Две команды просят ресурсы на срочные задачи, а запаса хватит только на одну. Как принять решение?", options: ["Сравнить срок, влияние задержки и возможность частичного решения; записать согласованные приоритеты", "Разделить запас поровну, даже если обе задачи после этого остановятся", "Выдать его команде с более ранним запросом и не менять очередь"], answer: 0 },
+      { prompt: "Запись расхода есть, но подтверждение пока не найдено. Как отразить это в сверке?", options: ["Пометить сумму как неподтверждённую, запросить документ и не скрывать временное расхождение", "Удалить расход до появления документа, а затем внести его задним числом", "Считать запись подтверждённой, если её внёс ответственный за операцию"], answer: 0 }
+    ]
+  },
+  {
+    id: "communication",
+    title: "Связь и координация",
+    category: "Коммуникация",
+    image: "/images/communication.svg",
+    imageAlt: "Участники обмениваются короткими и понятными сообщениями",
+    requiredRank: 5,
+    questions: [
+      { prompt: "На иллюстрации объявление затерялось среди обсуждений. Как повысить шанс, что команда заметит изменение?", options: ["Опубликовать краткое решение и требуемое действие в канале объявлений, сохранив ссылку на контекст", "Повторить весь разговор в нескольких чатах, чтобы сообщение точно увидели", "Закрепить исходный длинный тред и не создавать отдельного резюме"], answer: 0 },
+      { prompt: "В споре смешались проверяемые факты и предположения. Как вернуть обсуждение к решению?", options: ["Разделить подтверждённое и неизвестное, уточнить, какой факт изменит выбор, и назначить проверку", "Попросить каждого участника сократить позицию до одного предложения и выбрать убедительнейшее", "Вынести решение на голосование сейчас, а спорные факты проверить после"], answer: 0 },
+      { prompt: "Получено сообщение со сроком и просьбой передать его другой команде. Что проверить перед пересылкой?", options: ["Подлинность источника, допустимый круг адресатов и то, какая часть нужна получателю", "Достаточно проверить отправителя, после чего переслать исходный текст без изменений", "Уточнить срок у получателя, а источник сообщения проверять лишь при несогласии"], answer: 0 },
+      { prompt: "Ответственный не отвечает, а дедлайн приближается. Как использовать запасной канал?", options: ["Проверить согласованный срок ожидания, обратиться по резервному каналу и зафиксировать попытку связи", "Сразу задействовать все личные каналы и попросить команду тоже написать ему", "Передать задачу другому участнику без проверки полномочий, чтобы не терять время"], answer: 0 }
+    ]
+  },
+  {
+    id: "lore",
+    title: "История и культура клана",
+    category: "История",
+    image: "/images/lore.svg",
+    imageAlt: "Архив клана с датированными заметками и хроникой",
+    requiredRank: 6,
+    questions: [
+      { prompt: "На иллюстрации обнаружена старая заметка без ссылки на источник. Как включить её в хронику?", options: ["Указать дату и автора записи, пометить неподтверждённые детали и поискать независимое подтверждение", "Включить её как свидетельство очевидца, если автор был активным участником", "Пересказать её в современной формулировке и не акцентировать внимание на отсутствии источника"], answer: 0 },
+      { prompt: "Свидетельства участников о старом событии расходятся. Как описать его в архиве?", options: ["Сохранить подтверждённую последовательность и отметить, какие детали остаются спорными", "Выбрать рассказ участника с наиболее подробной памятью и указать его как основной", "Опубликовать обе версии без контекста, чтобы читатели сами решили"], answer: 0 },
+      { prompt: "Новичок спрашивает, почему традицию соблюдают не во всех случаях. Как объяснить её корректно?", options: ["Рассказать происхождение, цель и признанные исключения, отделив правило от привычки", "Описать наиболее частую практику как обязательное правило для всех случаев", "Попросить найти старое упоминание и не давать трактовку от руководства"], answer: 0 },
+      { prompt: "Архивная копия отличается от опубликованной записи. Как сохранить надёжность хроники?", options: ["Сохранить обе версии, даты и известное происхождение, а расхождение описать отдельно", "Заменить опубликованную запись более ранней копией без дополнительного примечания", "Оставить только версию, на которую чаще ссылаются участники"], answer: 0 }
+    ]
+  },
+  {
+    id: "strategy",
+    title: "Стратегия и цели",
+    category: "Планирование",
+    image: "/images/strategy.svg",
+    imageAlt: "Дорожная карта с большой целью, этапами и запасным маршрутом",
+    requiredRank: 7,
+    questions: [
+      { prompt: "На иллюстрации маршрут к цели проходит через несколько этапов. Что поможет понять, пора ли менять стратегию?", options: ["Для каждого этапа задать наблюдаемый результат, срок проверки и условие пересмотра", "Сохранить общий срок цели и оценивать ход работ по числу выполненных задач", "Назначить владельцев этапов, но не фиксировать контрольные даты, чтобы сохранить гибкость"], answer: 0 },
+      { prompt: "План отстаёт на неделю из-за зависимости от другой команды. Что проверить до пересмотра сроков?", options: ["Критический путь, доступные параллельные задачи и влияние переноса на согласованные результаты", "Сначала сократить объём последнего этапа, сохранив первоначальную дату отчёта", "Продлить весь план на неделю, пока зависимая команда не подтвердит новую оценку"], answer: 0 },
+      { prompt: "Два варианта дают одинаковый результат, но один быстрее, а другой надёжнее. Как сравнить их?", options: ["Сопоставить цену задержки, вероятность срыва и обратимость выбора с участниками, на которых он влияет", "Выбрать быстрый путь и держать резервный вариант на случай явной неудачи", "Выбрать надёжный путь, если доступных ресурсов хватает для обоих вариантов"], answer: 0 },
+      { prompt: "Две цели конкурируют за ключевого участника. Что делать перед перепланированием?", options: ["Уточнить последствия задержки каждой цели, найти замену или изменить последовательность этапов", "Разделить время участника поровну и перенести обе контрольные точки на одинаковый срок", "Попросить участника выбрать приоритет самостоятельно и обновить план по его решению"], answer: 0 }
+    ]
+  },
+  {
+    id: "conflict",
+    title: "Разбор конфликтов",
+    category: "Лидерство",
+    image: "/images/conflict.svg",
+    imageAlt: "Два участника обсуждают разногласие при помощи нейтрального посредника",
+    requiredRank: 8,
+    questions: [
+      { prompt: "Две стороны называют разные причины сбоя, а решение зависит от хронологии. Как начать разбор?", options: ["Собрать отдельные описания событий и независимые записи до совместного обсуждения выводов", "Сначала выслушать обе стороны вместе, чтобы сразу выявить расхождения", "Попросить руководителей сторон согласовать одну версию до изучения переписки"], answer: 0 },
+      { prompt: "Участник считает решение несправедливым, но в ходе встречи переходит на личности. Как удержать разговор?", options: ["Остановить персональные выпады, уточнить оспариваемое решение и дать сторонам одинаковое время изложить факты", "Сначала дать высказаться без ограничений, а затем попросить вторую сторону ответить на все замечания", "Перенести обсуждение в общий канал, где остальные смогут оценить доводы"], answer: 0 },
+      { prompt: "Посредник выяснил, что сам участвовал в предыдущем решении, которое обсуждают. Что надёжнее?", options: ["Раскрыть свою роль и передать разбор нейтральному руководителю", "Продолжить встречу, но не участвовать в итоговом голосовании", "Сначала выслушать участников, а о своей роли сообщить, если они её поднимут"], answer: 0 },
+      { prompt: "Стороны договорились о временном решении, но его результат станет виден только через неделю. Что зафиксировать?", options: ["Ответственных, критерий проверки, дату пересмотра и порядок действий при неудаче", "Только срок проверки, чтобы не ограничивать участников дополнительными условиями", "Итоговый вариант, а критерии оценки определить после получения результата"], answer: 0 }
+    ]
+  },
+  {
+    id: "logistics",
+    title: "Логистика и ответственность",
+    category: "Организация",
+    image: "/images/logistics.svg",
+    imageAlt: "План доставки с отмеченными задачами и запасным маршрутом",
+    requiredRank: 9,
+    questions: [
+      { prompt: "На иллюстрации маршрут зависит от неподтверждённой доставки. Какой план уменьшит риск срыва?", options: ["Назначить владельца проверки, установить крайний срок подтверждения и определить маршрут переключения", "Попросить перевозчика сообщать об изменениях и зарезервировать прежний маршрут до ответа", "Сразу запустить запасной маршрут, а основной отменить после подтверждения доставки"], answer: 0 },
+      { prompt: "Два обязательных пункта расписания пересекаются на 20 минут. Как выбрать, что переносить?", options: ["Сверить зависимости, состав участников и последствия задержки, затем сообщить затронутым сторонам варианты", "Перенести пункт с меньшим числом участников и обновить календарь после согласия организатора", "Сократить оба пункта на 10 минут, сохранив общий конец расписания"], answer: 0 },
+      { prompt: "Исполнитель отметил задачу завершённой, но результат ещё не проверен принимающей стороной. Как закрыть её корректно?", options: ["Отметить выполнение как ожидающее приёмки и закрыть после проверки критерия результата", "Закрыть задачу и открыть отдельную проверочную, чтобы не задерживать отчёт", "Попросить исполнителя подтвердить качество и закрыть задачу по его ответу"], answer: 0 },
+      { prompt: "Внешний партнёр не подтвердил срок, от которого зависит запуск. Что должно быть в резервном плане?", options: ["Последний срок ожидания, доступный заменяющий вариант и ответственный за переключение", "Два равноправных маршрута без заранее выбранного момента переключения", "Запас времени в конце графика и решение о замене после фактической задержки"], answer: 0 }
+    ]
+  },
+  {
+    id: "leadership",
+    title: "Знание руководства",
+    category: "Проверка знаний",
+    image: "/images/leadership.svg",
+    imageAlt: "Руководитель сопоставляет варианты решения с правилами и последствиями",
+    requiredRank: 9,
+    questions: [
+      { prompt: "На иллюстрации два допустимых решения дают разный результат для разных групп. Как руководителю обосновать выбор?", options: ["Показать применённые правила, проверяемые факты, затронутые интересы и причину выбранного компромисса", "Сначала выбрать решение, поддержанное большинством, а затем оформить аргументы для остальных", "Сравнить измеримые результаты и не включать трудно проверяемые последствия в объяснение"], answer: 0 },
+      { prompt: "Задача делегирована, но в середине работы изменились исходные условия. Какие границы нужно заранее оговорить?", options: ["Ожидаемый результат, предел самостоятельных решений и обстоятельства для повторного согласования", "Только конечный результат и срок; исполнитель сам определит, когда просить помощи", "Подробные шаги выполнения и требование согласовывать каждое отклонение от плана"], answer: 0 },
+      { prompt: "Несколько участников сообщают о похожей проблеме, но приводят только отдельные примеры. Как руководителю проверить сигнал?", options: ["Запросить сопоставимые случаи, определить масштаб и сообщить, какие данные нужны для решения", "Сразу изменить процесс на пробный срок, чтобы проверить реакцию всей команды", "Попросить каждого сначала обратиться к непосредственному руководителю и сверить жалобы позже"], answer: 0 },
+      { prompt: "Правило пришлось временно применить иначе из-за редкого случая. Как сохранить доверие и последовательность?", options: ["Объяснить основание исключения, его пределы и способ вернуться к обычному порядку", "Сделать исключение для похожих случаев, а точный предел уточнить по мере повторений", "Не объявлять исключение, если итоговое решение не изменило общие сроки"], answer: 0 }
+    ]
+  },
+  {
+    id: "mentorship",
+    title: "Наставничество",
+    category: "Передача опыта",
+    image: "/images/mentorship.svg",
+    imageAlt: "Опытный участник помогает новичку самостоятельно освоить задачу",
+    requiredRank: 11,
+    questions: [
+      { prompt: "На иллюстрации новичок почти повторил задачу, но пропустил проверку результата. Как наставнику помочь, не подменяя его работу?", options: ["Попросить назвать пропущенную проверку, дать ему завершить её и обсудить признаки успешного результата", "Показать правильный порядок целиком, затем попросить повторить задачу с начала", "Самостоятельно добавить проверку и попросить новичка наблюдать за итогом"], answer: 0 },
+      { prompt: "Ученик повторяет ошибку после объяснения. Что полезнее проверить до следующего задания?", options: ["Как он понял инструкцию, какие условия отличаются и где нужна дополнительная практика", "Может ли он дословно повторить порядок действий перед началом", "Достаточно ли подробна инструкция; если да, временно поручить задачу другому"], answer: 0 },
+      { prompt: "Новый навык успешно показан на знакомом примере. Как проверить, что он переносится на работу?", options: ["Предложить самостоятельный вариант с изменёнными условиями и обсудить ход решения", "Повторить тот же пример без подсказок, чтобы сравнить скорость выполнения", "Спросить, уверен ли участник, что сможет применить навык в другой ситуации"], answer: 0 },
+      { prompt: "Наставник видит, что команда продолжает обращаться к нему с типовыми вопросами. Как уменьшить зависимость?", options: ["Зафиксировать проверенный порядок, назначить доступный канал вопросов и постепенно передать владельцу навык", "Отвечать только на вопросы, которых ещё нет в общей переписке", "Собирать вопросы и проводить одну общую сессию в конце месяца"], answer: 0 }
+    ]
+  }
+];
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[character]);
+}
+
+function showToast(message) {
+  const toast = document.querySelector("#toast");
+  toast.textContent = message;
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 2800);
+}
+
+function quizCountLabel(count) {
+  const lastTwoDigits = count % 100;
+  const lastDigit = count % 10;
+  const noun = lastTwoDigits >= 11 && lastTwoDigits <= 14
+    ? "тестов"
+    : lastDigit === 1
+      ? "тест открыт"
+      : lastDigit >= 2 && lastDigit <= 4
+        ? "теста открыто"
+        : "тестов открыто";
+  return `${count} ${noun}`;
+}
+
+function setAuthMode(nextMode) {
+  mode = nextMode;
+  const creating = mode === "create";
+  authTabs.querySelectorAll(".auth-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.mode === mode));
+  authTitle.textContent = creating ? "Аккаунт участника" : "Вход в штаб";
+  authKicker.textContent = creating ? "НОВЫЙ УЧАСТНИК" : "ДОБРО ПОЖАЛОВАТЬ";
+  authDescription.textContent = creating
+    ? "Создай аккаунт. Начальное звание выдаётся автоматически."
+    : "Войди по нику и паролю или создай аккаунт участника.";
+  authSubmit.innerHTML = creating ? "Создать аккаунт <span>↗</span>" : "Войти в штаб <span>↗</span>";
+  document.querySelector("#auth-password").autocomplete = creating ? "new-password" : "current-password";
+  authMessage.textContent = "";
+}
+
+authTabs.addEventListener("click", async (event) => {
+  const tab = event.target.closest("[data-mode]");
+  if (tab) setAuthMode(tab.dataset.mode);
+});
+
+authForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  authMessage.textContent = "";
+  authSubmit.disabled = true;
+  const username = authForm.elements.username.value.trim();
+  const password = authForm.elements.password.value;
+  
+  try {
+    if (mode === "create") {
+      const users = JSON.parse(localStorage.getItem("clan_users") || "[]");
+      if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
+        throw new Error("Этот ник уже занят");
+      }
+      const newUser = {
+        id: Date.now(),
+        username,
+        password,
+        rank: 0,
+        points: 0,
+        isAdmin: false,
+        shootingPassed: false,
+        knowledgePassed: false,
+        warningUntil: null,
+        quizBest: {},
+        createdAt: Date.now()
+      };
+      users.push(newUser);
+      localStorage.setItem("clan_users", JSON.stringify(users));
+      localStorage.setItem("clan_current", JSON.stringify(newUser));
+      currentUser = newUser;
+      showToast("Аккаунт создан. Добро пожаловать в состав!");
+    } else {
+      const users = JSON.parse(localStorage.getItem("clan_users") || "[]");
+      const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
+      if (!user) {
+        throw new Error("Неверный ник или пароль");
+      }
+      localStorage.setItem("clan_current", JSON.stringify(user));
+      currentUser = user;
+    }
+    authForm.reset();
+    await loadDashboard();
+  } catch (error) {
+    authMessage.textContent = error.message;
+  } finally {
+    authSubmit.disabled = false;
+  }
+});
+
+logoutButton.addEventListener("click", async () => {
+  localStorage.removeItem("clan_current");
+  currentUser = undefined;
+  dashboard.classList.add("hidden");
+  authScreen.classList.remove("hidden");
+  logoutButton.classList.add("hidden");
+});
+
+function renderRankPath(user, ranks) {
+  document.querySelector("#rank-path").innerHTML = ranks.map((rank, index) => {
+    const state = index < user.rank ? "done" : index === user.rank ? "current" : "";
+    return `<div class="path-item ${state}"><span class="path-marker"></span><span>${escapeHtml(rank)}</span></div>`;
+  }).join("");
+}
+
+function getPromotion(rank, score, checks = {}) {
+  const current = RANKS[rank];
+  const next = RANKS[rank + 1];
+  if (!current || !next || current.manual || current.nextPoints === null) {
+    return { eligible: false, reason: current?.requirement ?? "Максимальное звание" };
+  }
+  if (score < current.nextPoints) {
+    return { eligible: false, reason: `Нужно набрать ещё ${current.nextPoints - score} баллов` };
+  }
+  if (current.adminCheck && !checks[current.adminCheck]) {
+    return { eligible: false, reason: current.requirement };
+  }
+  if (current.knowledgeCheck && !checks.knowledgePassed) {
+    return { eligible: false, reason: current.requirement };
+  }
+  if (checks.activeWarning) {
+    return { eligible: false, reason: "Сначала нужно закрыть активный выговор" };
+  }
+  return { eligible: true, reason: current.requirement ?? null };
+}
+
+function canRequestManualPromotion(rank, score, checks = {}) {
+  if (checks.activeWarning) return false;
+  if (rank === 7) return score >= RANKS[rank].nextPoints;
+  return rank === 10;
+}
+
+function renderProgress(user, ranks) {
+  document.querySelector("#welcome-name").textContent = user.username;
+  document.querySelector("#rank-chip-text").textContent = RANKS[user.rank].name;
+  document.querySelector("#current-rank").textContent = RANKS[user.rank].name;
+  document.querySelector("#rank-number").textContent = String(user.rank + 1).padStart(2, "0");
+
+  const currentThreshold = RANKS[user.rank].nextPoints;
+  const score = user.points;
+  const percent = currentThreshold ? Math.min(100, Math.round(score / currentThreshold * 100)) : 100;
+  document.querySelector("#score-label").textContent = currentThreshold === null ? `${score} баллов` : `${score} / ${currentThreshold}`;
+  document.querySelector("#progress-fill").style.width = `${percent}%`;
+  const nextRank = RANKS[user.rank + 1];
+  document.querySelector("#progress-caption").textContent = nextRank
+    ? `Следующее звание: ${nextRank.name}. Баллы обнуляются после повышения.`
+    : "Высшее звание в составе.";
+
+  const checks = {
+    shootingPassed: Boolean(user.shootingPassed),
+    knowledgePassed: Boolean(user.knowledgePassed),
+    activeWarning: user.warningUntil !== null && user.warningUntil > Date.now()
+  };
+
+  const chips = [];
+  if (RANKS[user.rank].requirement) {
+    const complete = RANKS[user.rank].requirement === "Сдача стрельбы" && user.shootingPassed;
+    chips.push(`<span class="requirement-chip ${complete ? "complete" : ""}">${escapeHtml(RANKS[user.rank].requirement)}${complete ? " — пройдена" : ""}</span>`);
+  }
+  if (currentThreshold !== null && user.rank > 0) chips.push(`<span class="requirement-chip">Тесты по темам состава</span>`);
+  if (user.rank === 9) {
+    chips.push(`<span class="requirement-chip ${user.knowledgePassed ? "complete" : ""}">Проверка знаний${user.knowledgePassed ? " — пройдена" : ""}</span>`);
+  }
+  document.querySelector("#requirements").innerHTML = chips.join("");
+
+  const warningBanner = document.querySelector("#warning-banner");
+  warningBanner.classList.toggle("hidden", !checks.activeWarning);
+  warningBanner.textContent = checks.activeWarning
+    ? `Активный выговор блокирует повышение до ${new Date(user.warningUntil).toLocaleDateString("ru-RU")}.`
+    : "";
+
+  const promotion = getPromotion(user.rank, user.points, checks);
+  const manualPromotionReady = canRequestManualPromotion(user.rank, user.points, checks);
+  const promoteButton = document.querySelector("#promote-button");
+  const manualApproval = user.rank === 7 || user.rank === 10;
+  const firstRankManual = user.rank === 0;
+  promoteButton.classList.toggle("hidden", !promotion.eligible && !manualPromotionReady);
+  promoteButton.textContent = manualApproval ? "Передать на утверждение ↗" : "Подтвердить повышение ↗";
+  promoteButton.dataset.action = manualApproval || firstRankManual ? "request" : "promote";
+  renderRankPath(user, ranks);
+}
+
+function renderQuizzes(quizzes, user) {
+  document.querySelector("#tests-count").textContent = quizCountLabel(quizzes.length);
+  const grid = document.querySelector("#quiz-grid");
+  if (!quizzes.length) {
+    grid.innerHTML = `<div class="quiz-empty">Сейчас тесты закрыты. Когда администратор назначит тебе следующее звание, откроется первое испытание. Обратись к руководству клана.</div>`;
+    return;
+  }
+  grid.innerHTML = quizzes.map((quiz) => `
+    <article class="quiz-card">
+      <img class="quiz-image" src="${escapeHtml(quiz.image)}" alt="${escapeHtml(quiz.imageAlt)}">
+      <span class="quiz-category">${escapeHtml(quiz.category)}</span>
+      <h3>${escapeHtml(quiz.title)}</h3>
+      <p>Задание по иллюстрации · 4 вопроса · до ${quiz.questions.length * 10} баллов</p>
+      <div class="quiz-card-bottom">
+        <span class="quiz-score">Лучший результат: ${(user.quizBest[quiz.id] || 0)} / ${quiz.questions.length * 10}</span>
+        <button class="quiz-open" type="button" data-quiz="${escapeHtml(quiz.id)}">Пройти ↗</button>
+      </div>
+    </article>`).join("");
+  grid.querySelectorAll("[data-quiz]").forEach((button) => {
+    button.addEventListener("click", () => openQuiz(quizzes.find((quiz) => quiz.id === button.dataset.quiz)));
+  });
+}
+
+function openQuiz(quiz) {
+  if (!quiz) return;
+  document.querySelector("#quiz-category").textContent = quiz.category;
+  document.querySelector("#quiz-title").textContent = quiz.title;
+  document.querySelector("#quiz-message").textContent = "";
+  document.querySelector("#quiz-image").src = quiz.image;
+  document.querySelector("#quiz-image").alt = quiz.imageAlt;
+  document.querySelector("#quiz-questions").innerHTML = quiz.questions.map((item, index) => `
+    <fieldset class="question-block">
+      <legend>${index + 1}. ${escapeHtml(item.prompt)}</legend>
+      ${item.options.map((option, optionIndex) => `
+        <label class="answer-option"><input type="radio" name="question-${index}" value="${optionIndex}" required><span>${escapeHtml(option)}</span></label>
+      `).join("")}
+    </fieldset>`).join("");
+  document.querySelector("#quiz-form").dataset.quizId = quiz.id;
+  quizDialog.showModal();
+}
+
+document.querySelector("#quiz-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const quiz = currentQuizzes.find((item) => item.id === form.dataset.quizId);
+  const answers = quiz.questions.map((_, index) => {
+    const selected = form.querySelector(`input[name="question-${index}"]:checked`);
+    return selected ? Number(selected.value) : null;
+  });
+  const submit = document.querySelector("#quiz-submit");
+  submit.disabled = true;
+  try {
+    const points = quiz.questions.reduce((sum, item, index) => sum + (answers[index] === item.answer ? 10 : 0), 0);
+    const best = currentUser.quizBest[quiz.id] || 0;
+    const gained = Math.max(0, points - best);
+    
+    currentUser.quizBest[quiz.id] = Math.max(best, points);
+    currentUser.points += gained;
+    
+    if (quiz.id === "leadership" && points >= 30) {
+      currentUser.knowledgePassed = true;
+    }
+
+    const users = JSON.parse(localStorage.getItem("clan_users") || "[]");
+    const userIndex = users.findIndex(u => u.id === currentUser.id);
+    if (userIndex !== -1) {
+      users[userIndex] = currentUser;
+      localStorage.setItem("clan_users", JSON.stringify(users));
+    }
+    localStorage.setItem("clan_current", JSON.stringify(currentUser));
+
+    const checks = {
+      shootingPassed: Boolean(currentUser.shootingPassed),
+      knowledgePassed: Boolean(currentUser.knowledgePassed),
+      activeWarning: currentUser.warningUntil !== null && currentUser.warningUntil > Date.now()
+    };
+    const promotion = getPromotion(currentUser.rank, currentUser.points, checks);
+    let promotedTo = null;
+    if (promotion.eligible && !RANKS[currentUser.rank].manual && currentUser.rank > 0) {
+      promotedTo = RANKS[currentUser.rank + 1].name;
+      currentUser.rank += 1;
+      currentUser.points = 0;
+      currentUser.quizBest = {};
+      
+      const users = JSON.parse(localStorage.getItem("clan_users") || "[]");
+      const userIndex = users.findIndex(u => u.id === currentUser.id);
+      if (userIndex !== -1) {
+        users[userIndex] = currentUser;
+        localStorage.setItem("clan_users", JSON.stringify(users));
+      }
+      localStorage.setItem("clan_current", JSON.stringify(currentUser));
+    }
+
+    const message = promotedTo
+      ? `Результат: ${points}/${quiz.questions.length * 10}. Ты получил звание «${promotedTo}»!`
+      : `Результат: ${points}/${quiz.questions.length * 10}. Новых баллов: ${gained}.`;
+    quizDialog.close();
+    showToast(message);
+    await loadDashboard();
+  } catch (error) {
+    document.querySelector("#quiz-message").textContent = error.message;
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+document.querySelector("#promote-button").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  if (button.dataset.action === "request") {
+    showToast("Запрос на повышение отправлен руководству.");
+    return;
+  }
+  try {
+    const checks = {
+      shootingPassed: Boolean(currentUser.shootingPassed),
+      knowledgePassed: Boolean(currentUser.knowledgePassed),
+      activeWarning: currentUser.warningUntil !== null && currentUser.warningUntil > Date.now()
+    };
+    const promotion = getPromotion(currentUser.rank, currentUser.points, checks);
+    if (!promotion.eligible) {
+      showToast(promotion.reason);
+      return;
+    }
+    currentUser.rank += 1;
+    currentUser.points = 0;
+    currentUser.quizBest = {};
+    
+    const users = JSON.parse(localStorage.getItem("clan_users") || "[]");
+    const userIndex = users.findIndex(u => u.id === currentUser.id);
+    if (userIndex !== -1) {
+      users[userIndex] = currentUser;
+      localStorage.setItem("clan_users", JSON.stringify(users));
+    }
+    localStorage.setItem("clan_current", JSON.stringify(currentUser));
+    
+    showToast(`Поздравляем! Новое звание: ${RANKS[currentUser.rank].name}. Баллы сброшены.`);
+    await loadDashboard();
+  } catch (error) {
+    showToast(error.message);
+  }
+});
+
+async function renderMembers() {
+  const container = document.querySelector("#member-list");
+  const users = JSON.parse(localStorage.getItem("clan_users") || "[]");
+  const filter = document.querySelector("#member-search").value.trim().toLocaleLowerCase("ru");
+  const filtered = users.filter((member) => member.username.toLocaleLowerCase("ru").includes(filter));
+  if (!filtered.length) {
+    container.innerHTML = `<div class="no-members">Участники не найдены.</div>`;
+    return;
+  }
+  container.innerHTML = filtered.map((member) => {
+    const warningDays = member.warningUntil !== null
+      ? Math.max(1, Math.ceil((member.warningUntil - Date.now()) / 86_400_000))
+      : 0;
+    return `
+      <div class="member-row" data-member="${member.id}">
+        <div class="member-identity"><strong>${escapeHtml(member.username)}${member.isAdmin ? " · админ" : ""}</strong><small>${escapeHtml(RANKS[member.rank].name)} · ${member.points} баллов${member.warningUntil !== null && member.warningUntil > Date.now() ? " · активный выговор" : ""}</small></div>
+        <select class="member-rank" aria-label="Звание участника ${escapeHtml(member.username)}">${RANKS.map((rank, index) => `<option value="${index}" ${index === member.rank ? "selected" : ""}>${escapeHtml(rank.name)}</option>`).join("")}</select>
+        <label title="Отметить сдачу стрельбы"><input class="member-shooting" type="checkbox" ${member.shootingPassed ? "checked" : ""}> Стрельба</label>
+        <label title="Выговор в днях, 0 — снять"><input class="member-warning" type="number" min="0" max="365" value="${warningDays}" aria-label="Срок выговора"> дн.</label>
+        <button class="save-member" type="button">Сохранить</button>
+      </div>`;
+  }).join("");
+
+  container.querySelectorAll(".member-row").forEach((row) => {
+    row.querySelector(".save-member").addEventListener("click", async () => {
+      const id = Number(row.dataset.member);
+      const days = Number(row.querySelector(".member-warning").value);
+      const rank = Number(row.querySelector(".member-rank").value);
+      if (!Number.isInteger(days) || days < 0 || days > 365) return showToast("Срок выговора: от 0 до 365 дней");
+      try {
+        const users = JSON.parse(localStorage.getItem("clan_users") || "[]");
+        const userIndex = users.findIndex(u => u.id === id);
+        if (userIndex !== -1) {
+          users[userIndex].rank = rank;
+          users[userIndex].shootingPassed = row.querySelector(".member-shooting").checked;
+          users[userIndex].warningUntil = days === 0 ? null : Date.now() + days * 24 * 60 * 60 * 1000;
+          if (users[userIndex].rank !== rank) {
+            users[userIndex].points = 0;
+            users[userIndex].quizBest = {};
+          }
+          localStorage.setItem("clan_users", JSON.stringify(users));
+          if (currentUser.id === id) {
+            currentUser = users[userIndex];
+            localStorage.setItem("clan_current", JSON.stringify(currentUser));
+          }
+        }
+        await renderMembers();
+        await loadDashboard();
+        showToast("Изменения сохранены");
+      } catch (error) {
+        showToast(error.message);
+      }
+    });
+  });
+}
+
+document.querySelector("#member-search").addEventListener("input", () => {
+  renderMembers().catch((error) => showToast(error.message));
+});
+
+async function loadDashboard() {
+  const saved = localStorage.getItem("clan_current");
+  if (!saved) {
+    authScreen.classList.remove("hidden");
+    dashboard.classList.add("hidden");
+    logoutButton.classList.add("hidden");
+    return;
+  }
+  
+  currentUser = JSON.parse(saved);
+  currentQuizzes = QUIZZES.filter(quiz => currentUser.rank >= quiz.requiredRank);
+  
+  authScreen.classList.add("hidden");
+  dashboard.classList.remove("hidden");
+  logoutButton.classList.remove("hidden");
+  renderProgress(currentUser, RANKS.map(r => r.name));
+  renderQuizzes(currentQuizzes, currentUser);
+  
+  const adminSection = document.querySelector("#admin-section");
+  adminSection.classList.toggle("hidden", !currentUser.isAdmin);
+  if (currentUser.isAdmin) await renderMembers();
+}
+
+async function initialise() {
+  const users = JSON.parse(localStorage.getItem("clan_users") || "[]");
+  if (users.length === 0) {
+    setAuthMode("setup");
+    authTabs.classList.add("hidden");
+    document.querySelector("#setup-key-field").classList.add("hidden");
+    authForm.elements.username.value = "";
+    authForm.elements.password.value = "";
+    authForm.elements.password.autocomplete = "new-password";
+    authKicker.textContent = "ПЕРВЫЙ ЗАПУСК";
+    authTitle.textContent = "Вход администратора";
+    authDescription.textContent = "Введи логин и пароль администратора";
+    authSubmit.innerHTML = "Войти <span>↗</span>";
+    authForm.addEventListener("submit", async (event) => {
+      if (mode !== "setup") return;
+      event.preventDefault();
+      authMessage.textContent = "";
+      authSubmit.disabled = true;
+      try {
+        const username = authForm.elements.username.value.trim();
+        const password = authForm.elements.password.value;
+        const preset = PRESET_ADMINS.find(a => a.username === username && a.password === password);
+        if (!preset) {
+          throw new Error("Неверный логин или пароль");
+        }
+        const newUser = {
+          id: Date.now(),
+          username: preset.username,
+          password: preset.password,
+          rank: 0,
+          points: 0,
+          isAdmin: true,
+          shootingPassed: false,
+          knowledgePassed: false,
+          warningUntil: null,
+          quizBest: {},
+          createdAt: Date.now()
+        };
+        users.push(newUser);
+        localStorage.setItem("clan_users", JSON.stringify(users));
+        localStorage.setItem("clan_current", JSON.stringify(newUser));
+        currentUser = newUser;
+        authForm.reset();
+        await loadDashboard();
+      } catch (error) {
+        authMessage.textContent = error.message;
+      } finally {
+        authSubmit.disabled = false;
+      }
+    });
+  }
+
+  try {
+    await loadDashboard();
+  } catch (error) {
+    setAuthMode("login");
+  }
+}
+
+initialise().catch((error) => {
+  authMessage.textContent = error.message;
+});
