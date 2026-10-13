@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 230">
+  <rect width="600" height="230" rx="18" fill="#20251c"/>
+  <circle cx="520" cy="190" r="88" fill="#e8ad68" opacity=".08"/>
+  <rect x="170" y="42" width="260" height="148" rx="12" fill="#30372a" stroke="#697a48"/>
+  <path d="M170 82h260" stroke="#697a48" stroke-width="2"/>
+  <path d="M220 42v17m160-17v17" stroke="#d6f278" stroke-width="8" stroke-linecap="round"/>
+  <text x="191" y="69" fill="#d6f278" font-family="sans-serif" font-size="13" letter-spacing="2">ПЛАН СОБЫТИЯ</text>
+  <g fill="#555d49"><rect x="196" y="99" width="37" height="24" rx="4"/><rect x="251" y="99" width="37" height="24" rx="4"/><rect x="306" y="99" width="37" height="24" rx="4"/></g>
+  <rect x="361" y="99" width="37" height="24" rx="4" fill="#d6f278"/>
+  <rect x="196" y="142" width="37" height="24" rx="4" fill="#8eb6ee"/>
+  <g fill="#555d49"><rect x="251" y="142" width="37" height="24" rx="4"/><rect x="306" y="142" width="37" height="24" rx="4"/><rect x="361" y="142" width="37" height="24" rx="4"/></g>
+  <text x="195" y="216" fill="#acb89a" font-family="sans-serif" font-size="12" letter-spacing="3">ОРГАНИЗАЦИЯ СОБЫТИЙ</text>
+</svg>
