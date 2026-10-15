@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 230">
+  <rect width="600" height="230" rx="18" fill="#20251c"/>
+  <circle cx="510" cy="48" r="78" fill="#d6f278" opacity=".08"/>
+  <path d="M95 174h410" stroke="#58614c" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="207" cy="92" r="25" fill="#d6f278"/>
+  <path d="M166 169c5-31 20-48 41-48s36 17 41 48" fill="#82995f"/>
+  <circle cx="379" cy="107" r="21" fill="#c78f61"/>
+  <path d="M343 169c4-27 17-41 36-41s32 14 36 41" fill="#8a6049"/>
+  <rect x="287" y="53" width="102" height="39" rx="8" fill="#30372a" stroke="#697a48"/>
+  <path d="M307 72h61" stroke="#d6f278" stroke-width="5" stroke-linecap="round"/>
+  <path d="M275 119c22-18 43-18 65-3" fill="none" stroke="#a5b98a" stroke-width="3" stroke-dasharray="5 7"/>
+  <path d="m331 107 9 10-13 2" fill="#a5b98a"/>
+  <text x="189" y="218" fill="#acb89a" font-family="sans-serif" font-size="12" letter-spacing="3">НАСТАВНИЧЕСТВО</text>
+</svg>
